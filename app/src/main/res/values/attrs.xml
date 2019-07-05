@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="scalable_field_view">
+        <attr name="showGrid" format="boolean"/>
+        <attr name="cell_size" format="dimension"/>
+        <attr name="grid_line_color" format="color"/>
+        <attr name="grid_line_width" format="dimension"/>
+        <attr name="scale_field" format="float"/>
+    </declare-styleable>
+</resources>
