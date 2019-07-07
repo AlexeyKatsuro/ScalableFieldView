@@ -1,9 +1,7 @@
 package com.alexeykatsuro.scalablefieldview.ui.widgets
 
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
+import android.graphics.*
 import android.util.AttributeSet
 import android.view.View
 import androidx.annotation.ColorInt
@@ -27,7 +25,8 @@ class ScalableFieldView @JvmOverloads constructor(
         const val DEFAULT_SCALE = 1f
     }
 
-    private var paint = Paint()
+    private val paint = Paint()
+    private val path = Path()
 
     var scaleField: Float
     var cellSize: Float
@@ -86,13 +85,16 @@ class ScalableFieldView @JvmOverloads constructor(
         val width = canvas.width.toFloat()
         val height = canvas.height.toFloat()
         while (x < width) {
-            canvas.drawLine(x, 0f, x, height, paint)
+            path.moveTo(x, 0f)
+            path.lineTo(x, height)
             x += cellSize
         }
         while (y < height) {
-            canvas.drawLine(0f, y, width, y, paint)
+            path.moveTo(0f, y)
+            path.lineTo(width, y)
             y += cellSize
         }
+        canvas.drawPath(path, paint)
     }
 
 }
