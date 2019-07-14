@@ -2,16 +2,21 @@ package com.alexeykatsuro.scalablefieldview.ui.widgets
 
 import android.content.Context
 import android.graphics.*
+import android.graphics.drawable.Drawable
 import android.util.AttributeSet
+import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import androidx.annotation.ColorInt
 import com.alexeykatsuro.scalablefieldview.R
+import com.alexeykatsuro.scalablefieldview.ui.drawables.Grid
+import com.alexeykatsuro.scalablefieldview.ui.drawables.ScalableDrawable
+import com.alexeykatsuro.scalablefieldview.ui.drawables.Translatable
+import com.alexeykatsuro.scalablefieldview.utils.PaintConfig
 import com.alexeykatsuro.scalablefieldview.utils.copy
 import com.alexeykatsuro.scalablefieldview.utils.toPx
 
 
-private typealias PaintConfig = Paint.() -> Unit
 typealias OnFocusPointChangeListener = (old: PointF, new: PointF) -> Unit
 typealias OnScaleChangeListener = (scale: Float) -> Unit
 
@@ -20,11 +25,9 @@ class ScalableFieldView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
     defStyleRes: Int = 0
-) : View(context, attrs, defStyleAttr, defStyleRes) {
+) : View(context, attrs, defStyleAttr, defStyleRes), Translatable {
     companion object {
         val DEFAULT_CELL_SIZE = 5f.toPx
-        val DEFAULT_GRID_LINE_WIDTH = 1f.toPx
-        const val DEFAULT_GRID_LINE_COLOR = Color.GRAY
 
         const val DEFAULT_IS_SHOW_GRID = true
         const val DEFAULT_SCALE = 1f
@@ -38,28 +41,16 @@ class ScalableFieldView @JvmOverloads constructor(
     private val drawMatrix = Matrix()
 
     var cellSize: Float
+    override var scale: Float = DEFAULT_SCALE
+    override var translation: PointF = PointF(0f, 0f)
 
-    @ColorInt
+    val drawables: MutableList<ScalableDrawable> = mutableListOf()
+    val gridDrawable: ScalableDrawable
+    /*@ColorInt
     var gridLineColor: Int
-    var gridLineWidth: Float
+    var gridLineWidth: Float*/
 
     var isShowGrid: Boolean
-
-    private val gestureListener = object : OnMoveGestureListener {
-
-        override fun onDrag(dx: Float, dy: Float) {
-            drawMatrix.postTranslate(-dx, -dy)
-            invalidate()
-        }
-
-        override fun onScale(scaleFactor: Float, focusX: Float, focusY: Float) {
-            drawMatrix.postScale(scaleFactor, scaleFactor, focusX, focusY)
-        }
-
-    }
-
-    private val gestureDetector: MovementGestureDetector = MovementGestureDetector(context, gestureListener)
-
 
     init {
 
@@ -76,58 +67,57 @@ class ScalableFieldView @JvmOverloads constructor(
         isShowGrid = typedArray.getBoolean(
             R.styleable.scalable_field_view_showGrid, DEFAULT_IS_SHOW_GRID
         )
-        gridLineColor = typedArray.getColor(
-            R.styleable.scalable_field_view_grid_line_color, DEFAULT_GRID_LINE_COLOR
+        /* gridLineColor = typedArray.getColor(
+             R.styleable.scalable_field_view_grid_line_color, DEFAULT_GRID_LINE_COLOR
+         )
+         gridLineWidth = typedArray.getDimension(
+             R.styleable.scalable_field_view_grid_line_width, DEFAULT_GRID_LINE_WIDTH
+         )*/
+        scale = typedArray.getFloat(
+            R.styleable.scalable_field_view_scale_field, DEFAULT_SCALE
         )
-        gridLineWidth = typedArray.getDimension(
-            R.styleable.scalable_field_view_grid_line_width, DEFAULT_GRID_LINE_WIDTH
-        )
-//        scale = typedArray.getFloat(
-//            R.styleable.scalable_field_view_scale_field, DEFAULT_SCALE
-//        )
 
+        gridDrawable = Grid(cellSize, scale, translation)
         typedArray.recycle()
     }
 
-    private val gridLineConfig: PaintConfig = {
-        reset()
-        style = Paint.Style.STROKE
-        strokeWidth = gridLineWidth
-        color = gridLineColor
+    private val gestureListener = object : OnMoveGestureListener {
+
+        override fun onDrag(dx: Float, dy: Float) {
+            Log.d("onDrag", "dx $dx, dy $dy")
+            translation.x -= dx
+            translation.y -= dy
+            //drawMatrix.postTranslate(-dx, -dy)
+            Log.d("onDrag", "translation x:${translation.x}, y ${translation.y}")
+            gridDrawable.translation = translation
+            invalidate()
+        }
+
+        override fun onScale(scaleFactor: Float, focusX: Float, focusY: Float) {
+            scale += scaleFactor - 1
+            gridDrawable.scale = scale
+            invalidate()
+            //drawMatrix.postScale(scaleFactor, scaleFactor, focusX, focusY)
+        }
+
+    }
+    private val gestureDetector: MovementGestureDetector =
+        MovementGestureDetector(context, gestureListener)
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        if (changed) {
+            gridDrawable.setBounds(left, top, right, bottom)
+        }
     }
 
     override fun onDraw(canvas: Canvas) {
         if (isShowGrid) {
-            drawGrid(canvas)
+
+            gridDrawable.draw(canvas)
+            // drawGrid(canvas)
         }
     }
 
-    private fun drawGrid(canvas: Canvas) {
-        val width = 100 * cellSize
-        val height = 100 * cellSize
-//        val center =
-//            PointF(translationPointF.x - width / 2, translationPointF.y - height / 2)
-
-        var x = 0f
-        var y = 0f
-
-        paint.gridLineConfig()
-        path.reset()
-
-        while (x <= width) {
-            path.moveTo(+x, 0f)
-            path.lineTo(x, height)
-            x += cellSize
-        }
-        while (y <= height) {
-            path.moveTo(0f, y)
-            path.lineTo(width, y)
-            y += cellSize
-        }
-
-        path.transform(drawMatrix)
-        canvas.drawPath(path, paint)
-    }
 
     inline fun invalidateAfter(block: ScalableFieldView.() -> Unit) {
         this.block()
